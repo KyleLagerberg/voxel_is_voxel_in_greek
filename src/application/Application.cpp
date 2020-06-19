@@ -4,6 +4,21 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+
+static std::string ParseShader(const std::string& filepath) {
+    std::ifstream file(filepath);
+    
+    std::string line;
+    std::stringstream stream;
+
+    while (getline(file, line)) {
+        stream << line << '\n';
+    }
+    return stream.str();
+}
 
 
 static int CompileShader(const std::string& source, unsigned int type) {
@@ -23,6 +38,8 @@ static int CompileShader(const std::string& source, unsigned int type) {
         case GL_FRAGMENT_SHADER:
             shaderType = "Fragment";
             break;
+        default:
+            shaderType = "INVALID";
     }
 
 
@@ -140,23 +157,11 @@ int main(void)
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 
-    //create vertex and fragment shaders
-    std::string vertexShader =
-        "#version 330 core\n"
-        "\n"
-        "layout(location = 0)in vec4 position;\n"
-        "void main() {\n"
-        "   gl_Position = position;"
-        "}\n";
+    //load in vertex and fragment shaders
+    std::string vertexShader = ParseShader("src/shaders/basic.vert");
+    std::string fragmentShader = ParseShader("src/shaders/basic.frag");
 
-    std::string fragmentShader =
-        "#version 330 core"
-        "\n"
-        "layout(location = 0)out vec4 color;\n"
-        "void main() {\n"
-        "   color = vec4(1.0, 1.0, 0.0, 1.0);\n"
-        "}\n";
-
+    //compile shader code, push to GPU, and tell the context to use
     unsigned int shaderProgram = CreateShader(vertexShader, fragmentShader);
     glUseProgram(shaderProgram);
 
@@ -174,6 +179,8 @@ int main(void)
         /* Poll for and process events */
         glfwPollEvents();
     }
+
+    glDeleteProgram(shaderProgram);
 
     glfwTerminate();
     return 0;
