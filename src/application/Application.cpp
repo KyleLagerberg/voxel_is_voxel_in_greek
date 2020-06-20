@@ -7,6 +7,51 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <cmath>
+
+static void GLClearError() {
+    while (glGetError() != GL_NO_ERROR);
+}
+
+static void GLCheckError() {
+
+    while (GLenum errorCode = glGetError()) {
+        char* errorType;
+
+        switch (errorCode) {
+        case GL_NO_ERROR:
+            errorType = "GL_NO_ERROR";
+            break;
+        case GL_INVALID_ENUM:
+            errorType = "GL_INVALID_ENUM";
+            break;
+        case GL_INVALID_VALUE:
+            errorType = "GL_INVALID_VALUE";
+            break;
+        case GL_INVALID_OPERATION:
+            errorType = "GL_INVALID_OPERATION";
+            break;
+        case GL_INVALID_FRAMEBUFFER_OPERATION:
+            errorType = "GL_INVALID_FRAMEBUFFER_OPERATION";
+            break;
+        case GL_OUT_OF_MEMORY:
+            errorType = "GL_OUT_OF_MEMORY";
+            break;
+        case GL_STACK_UNDERFLOW:
+            errorType = "GL_STACK_UNDERFLOW";
+            break;
+        case GL_STACK_OVERFLOW:
+            errorType = "GL_STACK_OVERFLOW";
+            break;
+        default:
+            break;
+        }
+        std::cout << "OPENGL_ERROR: (" << errorType << ")" << std::endl;
+
+        //TODO: 
+        //https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetError.xhtml
+    } 
+}
 
 static std::string ParseShader(const std::string& filepath) {
     std::ifstream file(filepath);
@@ -102,14 +147,13 @@ static unsigned int CreateShader(const std::string& vertexShader, const std::str
         std::cout << "Shader successfully validated." << std::endl;
     }
 
-
+    //delete intermediate data
     glDeleteShader(vs);
     glDeleteShader(fs);
 
 
     return program;
 }
-
 
 
 int main(void)
@@ -119,8 +163,6 @@ int main(void)
     /* Initialize the library */
     if (!glfwInit())
         return -1;
-
-
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "OpenGL", NULL, NULL);
@@ -140,10 +182,16 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    float positions[6] = {
+    float positions[] = {
         -0.5f, -0.5f,
-         0.0f,  0.5f,
-         0.5f, -0.5f
+         0.5f, -0.5f,
+         0.5f,  0.5f,
+        -0.5f,  0.5f
+    };
+
+    unsigned int indices[] = {
+        0, 1, 2,
+        2, 3, 0
     };
 
 
@@ -151,11 +199,17 @@ int main(void)
     unsigned int buffer;
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER,  6 * sizeof(float), positions, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 4 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
 
-    //enable and specify the layout of the buffer
+    //enable and specify the layout of the buffer (only 1 attribute)
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+
+    //generate an index buffer
+    unsigned int indexBuffer;
+    glGenBuffers(1, &indexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * 3 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
 
     //load in vertex and fragment shaders
     std::string vertexShader = ParseShader("src/shaders/basic.vert");
@@ -165,13 +219,24 @@ int main(void)
     unsigned int shaderProgram = CreateShader(vertexShader, fragmentShader);
     glUseProgram(shaderProgram);
 
+    //uniform variable access and value set in the fragment shader
+    int location = glGetUniformLocation(shaderProgram, "u_Color");
+
+    //dynamic adjustments
+    float r = 0.0f;
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        r = fmod(r + .01, 360);
+        
+        glUniform4f(location, sin(r * 3.1415/180), 0.2f, 0.5f, 1.0f);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+
+
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
